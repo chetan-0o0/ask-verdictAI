@@ -445,7 +445,8 @@ def run_batch(text):
 
 
 with gr.Blocks(css=_CSS, theme=gr.themes.Base()) as demo:
-    gr.HTML('<div id="header-row">'
+    gr.HTML('<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>'
+            '<div id="header-row">'
             '<div id="app-title">AskVerdict AI</div>'
             '<div id="app-subtitle">Autonomous counterparty due diligence — '
             'reads the live web before you wire a dollar.</div></div>')
@@ -460,9 +461,9 @@ with gr.Blocks(css=_CSS, theme=gr.themes.Base()) as demo:
         status = gr.Textbox(label="Investigation trail", lines=6)
         card = gr.HTML(_EMPTY_STATE)
         with gr.Row():
-            gauge_plot = gr.Plot(label="Risk Score")
-            radar_plot = gr.Plot(label="Factor Severity")
-        waterfall_plot = gr.Plot(label="Risk Breakdown")
+            gauge_plot = gr.HTML()
+            radar_plot = gr.HTML()
+        waterfall_plot = gr.HTML()
         report_file = gr.File(label="Download due-diligence report (PDF)",
                               interactive=False)
         btn.click(run_check, inputs=[name_in, amount_in],
@@ -481,7 +482,7 @@ with gr.Blocks(css=_CSS, theme=gr.themes.Base()) as demo:
         bbtn = gr.Button("Screen all counterparties", variant="primary")
         bstatus = gr.Textbox(label="Progress", lines=6)
         btable = gr.HTML()
-        batch_chart = gr.Plot(label="Risk Distribution")
+        batch_chart = gr.HTML()
         bbtn.click(run_batch, inputs=[batch_in],
                    outputs=[bstatus, btable, batch_chart])
         gr.Examples(
