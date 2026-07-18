@@ -1,19 +1,13 @@
 {
-  "builds": [
-    {
-      "src": "app.py",
-      "use": "@vercel/python"
+  "functions": {
+    "app.py": {
+      "runtime": "@vercel/python"
     }
-  ],
+  },
   "routes": [
     {
       "src": "/(.*)",
       "dest": "app.py"
     }
-  ],
-  "functions": {
-    "app.py": {
-      "excludeFiles": "{venv/**,test_launch.py,__pycache__/**,*.json,*.md,*.example}"
-    }
-  }
+  ]
 }
