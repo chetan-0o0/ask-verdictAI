@@ -492,6 +492,8 @@ with gr.Blocks(css=_CSS, theme=gr.themes.Base()) as demo:
             '<b>OFAC</b> sanctions screening &middot; <b>Cognee</b> memory &middot; '
             '<b>Groq / AI&#47;ML API</b> &middot; deployed on Hugging Face</div>')
 
+app = demo.app
+
 if __name__ == "__main__":
     mode = "MOCK (offline)" if config.USE_MOCK else f"LIVE ({config.LLM_PROVIDER})"
     print(f"AskVerdict AI starting — data mode: {mode}")
