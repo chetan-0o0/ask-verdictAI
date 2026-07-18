@@ -20,26 +20,37 @@ def generate(system: str, user: str) -> str:
 
 def _gen_aimlapi(system: str, user: str) -> str:
     """AI/ML API — one OpenAI-compatible endpoint, hundreds of models."""
-    from openai import OpenAI
-    client = OpenAI(api_key=config.AIMLAPI_KEY,
-                    base_url="https://api.aimlapi.com/v1")
-    resp = client.chat.completions.create(
-        model=config.AIMLAPI_MODEL,
-        temperature=0.2,
-        messages=[
+    import httpx
+    url = "https://api.aimlapi.com/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {config.AIMLAPI_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": config.AIMLAPI_MODEL,
+        "temperature": 0.2,
+        "messages": [
             {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-    )
-    return resp.choices[0].message.content
+            {"role": "user", "content": user}
+        ]
+    }
+    resp = httpx.post(url, headers=headers, json=payload, timeout=60.0)
+    resp.raise_for_status()
+    return resp.json()["choices"][0]["message"]["content"]
 
 
 def _gen_gemini(system: str, user: str) -> str:
-    import google.generativeai as genai
-    genai.configure(api_key=config.GEMINI_API_KEY)
-    model = genai.GenerativeModel(config.GEMINI_MODEL, system_instruction=system)
-    resp = model.generate_content(user)
-    return resp.text
+    import httpx
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{config.GEMINI_MODEL}:generateContent?key={config.GEMINI_API_KEY}"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "contents": [{"parts": [{"text": user}]}],
+        "systemInstruction": {"parts": [{"text": system}]}
+    }
+    resp = httpx.post(url, headers=headers, json=payload, timeout=60.0)
+    resp.raise_for_status()
+    data = resp.json()
+    return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
 def _gen_groq(system: str, user: str) -> str:
