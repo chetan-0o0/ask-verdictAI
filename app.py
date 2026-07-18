@@ -4,6 +4,112 @@ Local:  python app.py
 Deploy: push to a Hugging Face Space (SDK: gradio). Set secrets there:
         USE_MOCK=false, LLM_PROVIDER=groq, GROQ_API_KEY, BRIGHTDATA_API_TOKEN
 """
+# ── Serverless Multiprocessing Patch ──────────────────────────────
+# Vercel's serverless environment lacks /dev/shm (shared memory),
+# causing multiprocessing.Lock / SemLock to raise FileNotFoundError.
+# We patch multiprocessing primitives to use threading equivalents.
+try:
+    import multiprocessing
+    import multiprocessing.synchronize
+    import multiprocessing.context
+    import threading
+
+    class DummyLock:
+        def __init__(self, *args, **kwargs):
+            self._lock = threading.Lock()
+        def acquire(self, *args, **kwargs):
+            return self._lock.acquire(*args, **kwargs)
+        def release(self, *args, **kwargs):
+            return self._lock.release(*args, **kwargs)
+        def __enter__(self):
+            return self._lock.__enter__()
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return self._lock.__exit__(exc_type, exc_val, exc_tb)
+
+    class DummyRLock:
+        def __init__(self, *args, **kwargs):
+            self._lock = threading.RLock()
+        def acquire(self, *args, **kwargs):
+            return self._lock.acquire(*args, **kwargs)
+        def release(self, *args, **kwargs):
+            return self._lock.release(*args, **kwargs)
+        def __enter__(self):
+            return self._lock.__enter__()
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return self._lock.__exit__(exc_type, exc_val, exc_tb)
+
+    class DummySemaphore:
+        def __init__(self, value=1, *args, **kwargs):
+            self._sem = threading.Semaphore(value)
+        def acquire(self, *args, **kwargs):
+            return self._sem.acquire(*args, **kwargs)
+        def release(self, *args, **kwargs):
+            return self._sem.release(*args, **kwargs)
+        def __enter__(self):
+            return self._sem.__enter__()
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return self._sem.__exit__(exc_type, exc_val, exc_tb)
+
+    class DummyBoundedSemaphore:
+        def __init__(self, value=1, *args, **kwargs):
+            self._sem = threading.BoundedSemaphore(value)
+        def acquire(self, *args, **kwargs):
+            return self._sem.acquire(*args, **kwargs)
+        def release(self, *args, **kwargs):
+            return self._sem.release(*args, **kwargs)
+        def __enter__(self):
+            return self._sem.__enter__()
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return self._sem.__exit__(exc_type, exc_val, exc_tb)
+
+    class DummyEvent:
+        def __init__(self, *args, **kwargs):
+            self._event = threading.Event()
+        def is_set(self):
+            return self._event.is_set()
+        def set(self):
+            return self._event.set()
+        def clear(self):
+            return self._event.clear()
+        def wait(self, timeout=None):
+            return self._event.wait(timeout)
+
+    class DummyCondition:
+        def __init__(self, lock=None, *args, **kwargs):
+            self._cond = threading.Condition(lock)
+        def acquire(self, *args, **kwargs):
+            return self._cond.acquire(*args, **kwargs)
+        def release(self, *args, **kwargs):
+            return self._cond.release(*args, **kwargs)
+        def wait(self, timeout=None):
+            return self._cond.wait(timeout)
+        def wait_for(self, predicate, timeout=None):
+            return self._cond.wait_for(predicate, timeout)
+        def notify(self, n=1):
+            return self._cond.notify(n)
+        def notify_all(self):
+            return self._cond.notify_all()
+        def __enter__(self):
+            return self._cond.__enter__()
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return self._cond.__exit__(exc_type, exc_val, exc_tb)
+
+    for mod in (multiprocessing, multiprocessing.synchronize, multiprocessing.context):
+        if hasattr(mod, 'Lock'):
+            mod.Lock = DummyLock
+        if hasattr(mod, 'RLock'):
+            mod.RLock = DummyRLock
+        if hasattr(mod, 'Semaphore'):
+            mod.Semaphore = DummySemaphore
+        if hasattr(mod, 'BoundedSemaphore'):
+            mod.BoundedSemaphore = DummyBoundedSemaphore
+        if hasattr(mod, 'Event'):
+            mod.Event = DummyEvent
+        if hasattr(mod, 'Condition'):
+            mod.Condition = DummyCondition
+except Exception:
+    pass
+
 import html
 import tempfile
 
@@ -470,7 +576,8 @@ with gr.Blocks(css=_CSS, theme=gr.themes.Base()) as demo:
                   outputs=[status, card, report_file,
                            gauge_plot, radar_plot, waterfall_plot])
         gr.Examples([["Apple Inc", "11111"], ["Wirecard AG", "50000"]],
-                    inputs=[name_in, amount_in])
+                    inputs=[name_in, amount_in],
+                    cache_examples=False)
 
     with gr.Tab("Batch screening"):
         gr.HTML('<div style="color:#808080;margin:4px 0 10px;font-size:14px">'
@@ -487,7 +594,8 @@ with gr.Blocks(css=_CSS, theme=gr.themes.Base()) as demo:
                    outputs=[bstatus, btable, batch_chart])
         gr.Examples(
             [["Apple Inc\nMicrosoft Corporation\nWirecard AG\nSiemens AG"]],
-            inputs=[batch_in])
+            inputs=[batch_in],
+            cache_examples=False)
 
     gr.HTML('<div class="foot">Powered by <b>Bright Data</b> (live web) &middot; '
             '<b>OFAC</b> sanctions screening &middot; <b>Cognee</b> memory &middot; '
